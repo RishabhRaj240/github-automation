@@ -4,13 +4,12 @@ import {
   GitPullRequest,
   Lock,
   Globe,
-  CheckCircle2,
   AlertCircle,
   FileText,
   ShieldCheck,
   Loader2,
   X,
-  ExternalLink,
+  Key,
 } from 'lucide-react';
 import { useRepoPilot } from '../context/RepoPilotContext';
 import { useAuth } from '../context/AuthContext';
@@ -22,7 +21,7 @@ interface PublishModalProps {
 
 export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { githubConnection } = useAuth();
+  const { githubConnection, githubAccessToken, connectGitHubWithToken } = useAuth();
   const {
     metadata,
     files,
@@ -34,15 +33,31 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose }) =
 
   const [confirmed, setConfirmed] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [modalToken, setModalToken] = useState('');
+  const [isVerifyingToken, setIsVerifyingToken] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const owner = githubConnection?.githubUsername || 'username';
+  const hasToken = Boolean(githubAccessToken || localStorage.getItem('repopilot_gh_token'));
+  const owner = githubConnection?.githubUsername || 'RishabhRaj240';
   const totalFiles = files.length + 1; // including README.md
   const totalSizeKb = (files.reduce((acc, f) => acc + f.size, 0) + new Blob([readmeContent]).size) / 1024;
 
+  const handleAuthorizeToken = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalToken.trim()) return;
+    setIsVerifyingToken(true);
+    setTokenError(null);
+    const res = await connectGitHubWithToken(modalToken.trim());
+    setIsVerifyingToken(false);
+    if (!res.success) {
+      setTokenError(res.error || 'Failed to verify token');
+    }
+  };
+
   const handlePublish = async () => {
-    if (!confirmed) return;
+    if (!confirmed || !hasToken) return;
     setErrorMsg(null);
     try {
       const result = await publishProject();
@@ -78,6 +93,51 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose }) =
 
         {/* Modal Body */}
         <div className="p-5 space-y-4">
+          {/* If No GitHub Token Connected, Show Quick Token Input */}
+          {!hasToken && (
+            <div className="bg-amber-950/40 border border-amber-600/60 rounded-xl p-4 space-y-2.5">
+              <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold">
+                <Key className="w-4 h-4" />
+                <span>GitHub Token Required for Publishing</span>
+              </div>
+              <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                Enter your GitHub Personal Access Token (PAT) with &lsquo;repo&rsquo; scope so RepoPilot can create <strong>@{owner}/{metadata.name}</strong> on your account:
+              </p>
+              <form onSubmit={handleAuthorizeToken} className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={modalToken}
+                    onChange={(e) => setModalToken(e.target.value)}
+                    placeholder="Paste GitHub Token (ghp_... or github_pat_...)"
+                    className="flex-1 px-3 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-brand-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isVerifyingToken || !modalToken.trim()}
+                    className="px-3.5 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                  >
+                    {isVerifyingToken ? 'Verifying...' : 'Authorize'}
+                  </button>
+                </div>
+                {tokenError && (
+                  <p className="text-[10px] text-rose-400">{tokenError}</p>
+                )}
+                <p className="text-[10px] text-slate-400">
+                  Generate a token with &apos;repo&apos; scope at{' '}
+                  <a
+                    href="https://github.com/settings/tokens/new"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand-400 underline"
+                  >
+                    github.com/settings/tokens
+                  </a>
+                </p>
+              </form>
+            </div>
+          )}
+
           {/* Target Summary Card */}
           <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
             <div className="flex items-center justify-between text-xs">
@@ -166,7 +226,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose }) =
                   type="checkbox"
                   checked={confirmed}
                   onChange={(e) => setConfirmed(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-700 bg-slate-900 text-brand-500 focus:ring-brand-500"
+                  disabled={!hasToken}
+                  className="mt-0.5 rounded border-slate-700 bg-slate-900 text-brand-500 focus:ring-brand-500 disabled:opacity-50"
                 />
                 <span className="text-xs text-slate-300 leading-relaxed">
                   I authorize RepoPilot to create the repository <strong>{metadata.name}</strong> on GitHub account <strong>@{owner}</strong> and push the files listed above.
@@ -196,7 +257,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose }) =
           </button>
           <button
             onClick={handlePublish}
-            disabled={!confirmed || isPublishing}
+            disabled={!confirmed || !hasToken || isPublishing}
             className="px-5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-brand-600 to-cyan-500 hover:from-brand-500 hover:to-cyan-400 rounded-xl shadow-lg shadow-brand-500/25 transition disabled:opacity-40 flex items-center gap-2"
           >
             {isPublishing ? (
@@ -216,4 +277,3 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose }) =
     </div>
   );
 };
-

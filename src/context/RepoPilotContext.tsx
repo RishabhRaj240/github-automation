@@ -38,7 +38,7 @@ interface RepoPilotContextType {
 const RepoPilotContext = createContext<RepoPilotContextType | undefined>(undefined);
 
 export const RepoPilotProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, githubConnection, customGeminiApiKey } = useAuth();
+  const { user, githubConnection, githubAccessToken, customGeminiApiKey } = useAuth();
 
   // Initialize with React + Vite starter template
   const defaultTemplate = STARTER_TEMPLATES[0];
@@ -377,8 +377,22 @@ body {
     setIsPublishing(true);
     setPublishProgress({ step: 'Initializing publication...', percent: 5 });
 
-    const owner = githubConnection?.githubUsername || 'octopilot-demo';
-    const token = 'demo_token_repopilot';
+    const token = githubAccessToken || localStorage.getItem('repopilot_gh_token');
+    const owner = githubConnection?.githubUsername;
+
+    if (!token) {
+      setIsPublishing(false);
+      throw new Error(
+        'GitHub Access Token is missing! Please go to Settings and enter your GitHub Access Token or Personal Access Token (PAT) with repo scope.'
+      );
+    }
+
+    if (!owner) {
+      setIsPublishing(false);
+      throw new Error(
+        'No GitHub username connected. Please connect your GitHub account in Settings.'
+      );
+    }
 
     try {
       const result = await GitHubService.publishRepository(

@@ -19,7 +19,10 @@ export const SettingsPage: React.FC = () => {
   const {
     user,
     githubConnection,
+    githubAccessToken,
     connectGitHubUsername,
+    connectGitHubWithToken,
+    signInWithGitHubOAuth,
     disconnectGitHub,
     customGeminiApiKey,
     setCustomGeminiApiKey,
@@ -28,28 +31,31 @@ export const SettingsPage: React.FC = () => {
 
   const { resetWorkspace } = useRepoPilot();
 
-  const [ghInput, setGhInput] = useState('');
-  const [ghStatusMsg, setGhStatusMsg] = useState<{ text: string; error?: boolean } | null>(null);
-  const [isConnectingGh, setIsConnectingGh] = useState(false);
+  const [ghTokenInput, setGhTokenInput] = useState('');
+  const [tokenMsg, setTokenMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [isConnectingToken, setIsConnectingToken] = useState(false);
 
   const [apiKeyInput, setApiKeyInput] = useState(customGeminiApiKey || '');
   const [keySavedMsg, setKeySavedMsg] = useState(false);
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [keyTestResult, setKeyTestResult] = useState<string | null>(null);
 
-  const handleConnectGh = async (e: React.FormEvent) => {
+  const handleConnectToken = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ghInput.trim()) return;
-    setIsConnectingGh(true);
-    setGhStatusMsg(null);
+    if (!ghTokenInput.trim()) return;
+    setIsConnectingToken(true);
+    setTokenMsg(null);
 
-    const res = await connectGitHubUsername(ghInput);
-    setIsConnectingGh(false);
+    const res = await connectGitHubWithToken(ghTokenInput.trim());
+    setIsConnectingToken(false);
     if (!res.success) {
-      setGhStatusMsg({ text: res.error || 'Failed to connect', error: true });
+      setTokenMsg({ text: res.error || 'Failed to verify token', error: true });
     } else {
-      setGhStatusMsg({ text: 'GitHub identity verified and connected successfully!', error: false });
-      setGhInput('');
+      setTokenMsg({
+        text: 'GitHub token verified successfully! Publishing to your account is now enabled.',
+        error: false,
+      });
+      setGhTokenInput('');
     }
   };
 
@@ -158,54 +164,113 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed">
-            Your connected GitHub account is used to create repositories and commit files. We never ask for Personal Access Tokens and store credentials securely on the server with AES-256-GCM encryption.
+            Connect your GitHub account to allow RepoPilot to create repositories and commit code directly under your profile.
           </p>
 
           {githubConnection ? (
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-mono font-bold text-white">
-                  @{githubConnection.githubUsername}
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
-                  {githubConnection.githubProfileUrl}
-                </p>
-              </div>
-              <button
-                onClick={disconnectGitHub}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-500/10 border border-rose-500/30 transition self-start sm:self-auto"
-              >
-                Disconnect GitHub
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleConnectGh} className="space-y-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={ghInput}
-                  onChange={(e) => setGhInput(e.target.value)}
-                  placeholder="Enter GitHub username or profile URL (e.g. torvalds)"
-                  className="flex-1 px-3 py-2 text-xs bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono"
-                />
+            <div className="space-y-3">
+              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {githubConnection.avatarUrl && (
+                    <img
+                      src={githubConnection.avatarUrl}
+                      alt={githubConnection.githubUsername}
+                      className="w-10 h-10 rounded-xl object-cover border border-slate-700"
+                    />
+                  )}
+                  <div>
+                    <p className="text-xs font-mono font-bold text-white flex items-center gap-1.5">
+                      <span>@{githubConnection.githubUsername}</span>
+                      {githubAccessToken ? (
+                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-sans border border-emerald-500/20">
+                          Active &amp; Ready to Publish
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-sans border border-amber-500/20">
+                          Token Needed for Publishing
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-mono">
+                      {githubConnection.githubProfileUrl}
+                    </p>
+                  </div>
+                </div>
                 <button
-                  type="submit"
-                  disabled={isConnectingGh}
-                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-sm transition disabled:opacity-50"
+                  onClick={disconnectGitHub}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-500/10 border border-rose-500/30 transition self-start sm:self-auto"
                 >
-                  {isConnectingGh ? 'Verifying...' : 'Verify & Connect'}
+                  Disconnect GitHub
                 </button>
               </div>
-              {ghStatusMsg && (
-                <p
-                  className={`text-xs ${
-                    ghStatusMsg.error ? 'text-rose-400' : 'text-emerald-400'
-                  }`}
-                >
-                  {ghStatusMsg.text}
-                </p>
+
+              {!githubAccessToken && (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2.5">
+                  <p className="text-xs text-amber-300 font-medium">
+                    ⚠️ Enter your GitHub Token or Personal Access Token (PAT) with &lsquo;repo&rsquo; scope below to enable one-click publishing to @{githubConnection.githubUsername}:
+                  </p>
+                  <form onSubmit={handleConnectToken} className="flex gap-2">
+                    <input
+                      type="password"
+                      value={ghTokenInput}
+                      onChange={(e) => setGhTokenInput(e.target.value)}
+                      placeholder="Paste token (ghp_... or github_pat_...)"
+                      className="flex-1 px-3 py-2 text-xs bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isConnectingToken}
+                      className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-sm transition disabled:opacity-50"
+                    >
+                      {isConnectingToken ? 'Verifying...' : 'Authorize Token'}
+                    </button>
+                  </form>
+                </div>
               )}
-            </form>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3 items-center">
+                <button
+                  type="button"
+                  onClick={signInWithGitHubOAuth}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 transition"
+                >
+                  <GithubIcon className="w-4 h-4 text-white" />
+                  <span>Connect with GitHub OAuth</span>
+                </button>
+              </div>
+
+              <div className="border-t border-slate-800/80 pt-3">
+                <p className="text-xs text-slate-400 mb-2">
+                  Or connect with a Personal Access Token (PAT):
+                </p>
+                <form onSubmit={handleConnectToken} className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={ghTokenInput}
+                      onChange={(e) => setGhTokenInput(e.target.value)}
+                      placeholder="Paste token (ghp_... or github_pat_... with 'repo' scope)"
+                      className="flex-1 px-3 py-2 text-xs bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isConnectingToken}
+                      className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-sm transition disabled:opacity-50"
+                    >
+                      {isConnectingToken ? 'Verifying...' : 'Connect Token'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {tokenMsg && (
+            <p className={`text-xs ${tokenMsg.error ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {tokenMsg.text}
+            </p>
           )}
         </div>
 

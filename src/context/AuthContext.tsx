@@ -6,10 +6,12 @@ import { GitHubService } from '../services/githubService';
 interface AuthContextType {
   user: UserProfile | null;
   githubConnection: GitHubConnection | null;
+  githubAccessToken: string | null;
   isLoading: boolean;
   isDemoMode: boolean;
   customGeminiApiKey: string | null;
   setCustomGeminiApiKey: (key: string) => void;
+  setGithubAccessToken: (token: string | null) => void;
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
   signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<{ error?: string }>;
   signInWithGitHubOAuth: () => Promise<void>;
@@ -17,6 +19,7 @@ interface AuthContextType {
   enableDemoMode: () => void;
   disableDemoMode: () => void;
   connectGitHubUsername: (usernameOrUrl: string) => Promise<{ success: boolean; error?: string }>;
+  connectGitHubWithToken: (token: string) => Promise<{ success: boolean; error?: string }>;
   disconnectGitHub: () => Promise<void>;
 }
 
@@ -43,9 +46,22 @@ const DEMO_GITHUB: GitHubConnection = {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [githubConnection, setGithubConnection] = useState<GitHubConnection | null>(null);
+  const [githubConnection, setGithubConnection] = useState<GitHubConnection | null>(() => {
+    const saved = localStorage.getItem('repopilot_gh_conn');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  });
+  const [githubAccessToken, setGithubAccessToken] = useState<string | null>(() => {
+    return localStorage.getItem('repopilot_gh_token') || null;
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(!isSupabaseConfigured);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [customGeminiApiKey, setCustomGeminiApiKey] = useState<string | null>(() => {
     return localStorage.getItem('repopilot_gemini_key') || null;
   });
@@ -60,10 +76,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const saveGithubAccessToken = (token: string | null) => {
+    if (!token) {
+      localStorage.removeItem('repopilot_gh_token');
+      setGithubAccessToken(null);
+    } else {
+      localStorage.setItem('repopilot_gh_token', token);
+      setGithubAccessToken(token);
+    }
+  };
+
   useEffect(() => {
     // Check if demo mode was explicitly persisted
     const storedDemo = localStorage.getItem('repopilot_demo_active');
-    if (storedDemo === 'true' || !isSupabaseConfigured) {
+    if (storedDemo === 'true') {
       setUser(DEMO_USER);
       setGithubConnection(DEMO_GITHUB);
       setIsDemoMode(true);
@@ -74,16 +100,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Real Supabase session check
     async function initSession() {
       try {
+        if (!isSupabaseConfigured) {
+          setIsLoading(false);
+          return;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setUser({
             id: session.user.id,
             email: session.user.email || '',
-            displayName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Developer',
+            displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.user_name || session.user.email?.split('@')[0] || 'Developer',
             avatarUrl: session.user.user_metadata?.avatar_url,
             createdAt: session.user.created_at,
           });
-          await fetchGitHubConnection(session.user.id);
+
+          // Grab GitHub OAuth provider token if available
+          if (session.provider_token) {
+            saveGithubAccessToken(session.provider_token);
+          }
+
+          // Automatically extract GitHub username from metadata
+          const ghUsername = session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username;
+          if (ghUsername) {
+            const newConn: GitHubConnection = {
+              id: `gh-${session.user.id}`,
+              userId: session.user.id,
+              githubUserId: String(session.user.user_metadata?.provider_id || ''),
+              githubUsername: ghUsername,
+              githubProfileUrl: `https://github.com/${ghUsername}`,
+              avatarUrl: session.user.user_metadata?.avatar_url,
+              grantedScopes: ['repo', 'read:user', 'user:email'],
+              connectedAt: new Date().toISOString(),
+            };
+            setGithubConnection(newConn);
+            localStorage.setItem('repopilot_gh_conn', JSON.stringify(newConn));
+          }
         }
       } catch (err) {
         console.warn('Session init failed:', err);
@@ -99,12 +151,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({
           id: session.user.id,
           email: session.user.email || '',
-          displayName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Developer',
+          displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.user_name || session.user.email?.split('@')[0] || 'Developer',
           avatarUrl: session.user.user_metadata?.avatar_url,
           createdAt: session.user.created_at,
         });
-        await fetchGitHubConnection(session.user.id);
-      } else if (!isDemoMode) {
+
+        if (session.provider_token) {
+          saveGithubAccessToken(session.provider_token);
+        }
+
+        const ghUsername = session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username;
+        if (ghUsername) {
+          const newConn: GitHubConnection = {
+            id: `gh-${session.user.id}`,
+            userId: session.user.id,
+            githubUserId: String(session.user.user_metadata?.provider_id || ''),
+            githubUsername: ghUsername,
+            githubProfileUrl: `https://github.com/${ghUsername}`,
+            avatarUrl: session.user.user_metadata?.avatar_url,
+            grantedScopes: ['repo', 'read:user', 'user:email'],
+            connectedAt: new Date().toISOString(),
+          };
+          setGithubConnection(newConn);
+          localStorage.setItem('repopilot_gh_conn', JSON.stringify(newConn));
+        }
+      } else if (!isDemoMode && !localStorage.getItem('repopilot_gh_token')) {
         setUser(null);
         setGithubConnection(null);
       }
@@ -115,30 +186,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
     };
   }, [isDemoMode]);
-
-  const fetchGitHubConnection = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_github_connections')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!error && data) {
-        setGithubConnection({
-          id: data.id,
-          userId: data.user_id,
-          githubUserId: data.github_user_id,
-          githubUsername: data.github_username,
-          githubProfileUrl: data.github_profile_url,
-          grantedScopes: data.granted_scopes || ['repo'],
-          connectedAt: data.connected_at,
-        });
-      }
-    } catch {
-      // Ignore if table/view not yet reachable
-    }
-  };
 
   const signInWithEmail = async (email: string, password: string) => {
     if (isDemoMode) {
@@ -183,15 +230,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    if (isDemoMode) {
-      localStorage.removeItem('repopilot_demo_active');
-      setUser(null);
-      setGithubConnection(null);
-      return;
-    }
-    await supabase.auth.signOut();
+    localStorage.removeItem('repopilot_demo_active');
+    localStorage.removeItem('repopilot_gh_token');
+    localStorage.removeItem('repopilot_gh_conn');
+    setGithubAccessToken(null);
     setUser(null);
     setGithubConnection(null);
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut().catch(() => {});
+    }
   };
 
   const enableDemoMode = () => {
@@ -214,7 +261,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Please enter a valid GitHub username or profile URL.' };
     }
 
-    // Verify existence via GitHub API
     const profile = await GitHubService.fetchPublicUserProfile(username);
     if (!profile) {
       return { success: false, error: `GitHub profile '@${username}' could not be found or is unreachable.` };
@@ -232,17 +278,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setGithubConnection(newConn);
+    localStorage.setItem('repopilot_gh_conn', JSON.stringify(newConn));
     return { success: true };
   };
 
-  const disconnectGitHub = async () => {
-    if (isSupabaseConfigured && !isDemoMode) {
-      try {
-        await supabase.functions.invoke('github-disconnect');
-      } catch {
-        // fallback
-      }
+  const connectGitHubWithToken = async (tokenInput: string): Promise<{ success: boolean; error?: string }> => {
+    const token = tokenInput.trim();
+    if (!token) {
+      return { success: false, error: 'Please enter a GitHub Personal Access Token or OAuth token.' };
     }
+
+    try {
+      const res = await fetch('https://api.github.com/user', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          return { success: false, error: 'Invalid or expired GitHub token. Please verify token permissions.' };
+        }
+        return { success: false, error: `GitHub API error: status ${res.status}` };
+      }
+
+      const ghUser = await res.json();
+      const scopesHeader = res.headers.get('x-oauth-scopes') || '';
+      const scopes = scopesHeader.split(',').map((s) => s.trim()).filter(Boolean);
+
+      const newConn: GitHubConnection = {
+        id: `gh-conn-${ghUser.id}`,
+        userId: user?.id || `user-${ghUser.id}`,
+        githubUserId: String(ghUser.id),
+        githubUsername: ghUser.login,
+        githubProfileUrl: ghUser.html_url,
+        avatarUrl: ghUser.avatar_url,
+        grantedScopes: scopes.length > 0 ? scopes : ['repo', 'user:email'],
+        connectedAt: new Date().toISOString(),
+      };
+
+      saveGithubAccessToken(token);
+      setGithubConnection(newConn);
+      localStorage.setItem('repopilot_gh_conn', JSON.stringify(newConn));
+
+      if (!user) {
+        setUser({
+          id: `gh-user-${ghUser.id}`,
+          email: ghUser.email || `${ghUser.login}@github.com`,
+          displayName: ghUser.name || ghUser.login,
+          avatarUrl: ghUser.avatar_url,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Network error verifying GitHub token' };
+    }
+  };
+
+  const disconnectGitHub = async () => {
+    localStorage.removeItem('repopilot_gh_token');
+    localStorage.removeItem('repopilot_gh_conn');
+    setGithubAccessToken(null);
     setGithubConnection(null);
   };
 
@@ -251,10 +350,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         githubConnection,
+        githubAccessToken,
         isLoading,
         isDemoMode,
         customGeminiApiKey,
         setCustomGeminiApiKey: saveCustomGeminiKey,
+        setGithubAccessToken: saveGithubAccessToken,
         signInWithEmail,
         signUpWithEmail,
         signInWithGitHubOAuth,
@@ -262,6 +363,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         enableDemoMode,
         disableDemoMode,
         connectGitHubUsername,
+        connectGitHubWithToken,
         disconnectGitHub,
       }}
     >
@@ -277,4 +379,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
