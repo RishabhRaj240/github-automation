@@ -12,9 +12,12 @@ import {
   Sparkles,
   Plus,
   Eraser,
+  Globe,
 } from 'lucide-react';
 import { useRepoPilot } from '../context/RepoPilotContext';
 import { STARTER_TEMPLATES } from '../lib/templates';
+import { LanguagePaletteModal } from './LanguagePaletteModal';
+import { LanguageDefinition } from '../lib/allLanguages';
 
 export const FileTree: React.FC = () => {
   const {
@@ -36,8 +39,21 @@ export const FileTree: React.FC = () => {
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showPaletteModal, setShowPaletteModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLanguageSelected = (lang: LanguageDefinition) => {
+    let finalPath = lang.defaultFilename;
+    let counter = 1;
+    while (files.some((f) => f.path.toLowerCase() === finalPath.toLowerCase())) {
+      const ext = lang.defaultFilename.includes('.') ? `.${lang.defaultFilename.split('.').pop()}` : '';
+      const base = lang.defaultFilename.replace(ext, '');
+      finalPath = `${base}-${counter}${ext}`;
+      counter++;
+    }
+    addFile(finalPath, lang.boilerplate);
+  };
 
   const handleCreateFile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,6 +204,13 @@ export const FileTree: React.FC = () => {
             + JS
           </button>
         </div>
+        <button
+          onClick={() => setShowPaletteModal(true)}
+          className="mt-1.5 w-full py-1 px-2 rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-300 border border-brand-500/30 text-[11px] font-medium flex items-center justify-center gap-1.5 transition"
+        >
+          <Sparkles className="w-3 h-3 text-cyan-400" />
+          <span>Browse All 25+ Languages...</span>
+        </button>
       </div>
 
       {/* Inline New File Form */}
@@ -348,6 +371,12 @@ export const FileTree: React.FC = () => {
       <div className="p-3 border-t border-slate-800 text-[11px] text-slate-500 text-center">
         Drop files or choose a preset above
       </div>
+
+      <LanguagePaletteModal
+        isOpen={showPaletteModal}
+        onClose={() => setShowPaletteModal(false)}
+        onSelectLanguage={handleLanguageSelected}
+      />
     </div>
   );
 };
