@@ -40,3 +40,4 @@ Use this checklist before taking RepoPilot AI to a live public domain.
 - [x] **No Privileged Keys in Client Bundles:** `SUPABASE_SERVICE_ROLE_KEY` and `GITHUB_CLIENT_SECRET` are never exposed in `VITE_` variables.
 - [x] **HTTPS Enforcement:** All production traffic enforced over TLS.
 - [x] **Strict Content Security Policy (CSP)** and CORS headers configured on Edge Functions.
+

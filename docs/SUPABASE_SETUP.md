@@ -77,3 +77,4 @@ supabase functions deploy publish-repo
   - 50,000 monthly active users (MAU).
   - 500,000 Edge Function invocations per month.
 - **When limits are approached:** Supabase provides email notifications at 80% and 100% capacity. No unexpected charges are incurred on the free plan; non-critical write requests are temporarily throttled until the billing cycle rolls over or upgrading to Pro (\$25/mo).
+

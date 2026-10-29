@@ -167,3 +167,4 @@ describe('Validation: GitHub Repository Name', () => {
     expect(validateRepositoryName(longName).valid).toBe(false);
   });
 });
+

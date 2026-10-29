@@ -47,3 +47,4 @@ If deploying as a GitHub App:
 - **Standard GitHub REST API:** 5,000 authenticated requests per hour per user.
 - **Git Database API:** Atomic tree and commit operations use approximately 3 to 6 API calls per repository publication (Blob uploads -> Tree -> Commit -> Ref update).
 - **What happens when the rate limit is exceeded?** GitHub returns HTTP status `403 Forbidden` with the `x-ratelimit-remaining: 0` header. RepoPilot detects this header and alerts the developer with their exact reset timestamp.
+

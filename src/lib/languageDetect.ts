@@ -140,6 +140,32 @@ export function analyzeProjectStack(files: ProjectFile[]): DetectedStack {
     return result;
   }
 
+  // Check C++ files
+  const cppFiles = files.filter((f) => {
+    const p = f.path.toLowerCase();
+    return p.endsWith('.cpp') || p.endsWith('.cc') || p.endsWith('.cxx') || p.endsWith('.hpp') || p.endsWith('.h');
+  });
+  if (cppFiles.length > 0) {
+    result.primaryLanguage = 'C++';
+    result.runtime = 'C++17 / C++20 (GCC / Clang)';
+    result.framework = 'Native C++';
+    result.manifestFile = files.some((f) => f.path.toLowerCase() === 'makefile')
+      ? 'Makefile'
+      : files.some((f) => f.path.toLowerCase() === 'cmakelists.txt')
+      ? 'CMakeLists.txt'
+      : undefined;
+    return result;
+  }
+
+  // Check Pure HTML / Web projects
+  const htmlFiles = files.filter((f) => f.path.toLowerCase().endsWith('.html'));
+  if (htmlFiles.length > 0 && !packageJsonFile) {
+    result.primaryLanguage = 'HTML5 / CSS3';
+    result.runtime = 'Modern Web Browser';
+    result.framework = 'Vanilla Web / Static HTML';
+    return result;
+  }
+
   // Fallback: frequency analysis by file extensions
   const extCounts: Record<string, number> = {};
   for (const f of files) {
@@ -161,3 +187,4 @@ export function analyzeProjectStack(files: ProjectFile[]): DetectedStack {
   result.primaryLanguage = topLang;
   return result;
 }
+

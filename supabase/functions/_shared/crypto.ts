@@ -58,3 +58,4 @@ export async function decryptToken(cipherBase64: string, ivBase64: string, secre
 
   return new TextDecoder().decode(decryptedBuffer);
 }
+

@@ -116,3 +116,4 @@ describe('GitHub Service: Repository Publishing Workflow', () => {
     ).rejects.toThrow(/Invalid file path/);
   });
 });
+

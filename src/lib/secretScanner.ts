@@ -171,3 +171,4 @@ export function sanitizeFilePath(filePath: string): { valid: boolean; sanitizedP
 
   return { valid: true, sanitizedPath: sanitized };
 }
+

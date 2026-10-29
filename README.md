@@ -146,3 +146,4 @@ RepoPilot is engineered to run at **\$0/month** on genuinely free developer tier
 ## 📄 License
 
 Distributed under the MIT License. See `LICENSE` for details.
+

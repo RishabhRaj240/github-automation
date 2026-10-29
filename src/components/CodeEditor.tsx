@@ -3,7 +3,7 @@ import { Copy, Check, AlertOctagon, Terminal } from 'lucide-react';
 import { useRepoPilot } from '../context/RepoPilotContext';
 
 export const CodeEditor: React.FC = () => {
-  const { files, activeFileId, updateFileContent, secretFindings } = useRepoPilot();
+  const { files, activeFileId, updateFileContent, updateFileLanguage, secretFindings } = useRepoPilot();
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -70,9 +70,25 @@ export const CodeEditor: React.FC = () => {
           <span className="text-xs font-mono font-medium text-slate-200">
             {activeFile.path}
           </span>
-          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono uppercase">
-            {activeFile.language}
-          </span>
+          <select
+            value={activeFile.language}
+            onChange={(e) => updateFileLanguage(activeFile.id, e.target.value)}
+            className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-brand-300 font-mono uppercase border border-slate-700 focus:outline-none focus:border-brand-500 cursor-pointer"
+            title="Change syntax language"
+          >
+            <option value="html">HTML</option>
+            <option value="cpp">C++</option>
+            <option value="c">C</option>
+            <option value="python">Python</option>
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="css">CSS</option>
+            <option value="json">JSON</option>
+            <option value="markdown">Markdown</option>
+            <option value="sql">SQL</option>
+            <option value="bash">Bash / Shell</option>
+            <option value="plaintext">Plain Text</option>
+          </select>
         </div>
 
         <div className="flex items-center gap-3 text-xs text-slate-500">
@@ -122,3 +138,4 @@ export const CodeEditor: React.FC = () => {
     </div>
   );
 };
+

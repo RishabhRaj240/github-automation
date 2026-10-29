@@ -43,3 +43,4 @@ RepoPilot AI features a provider-independent AI architecture designed for low la
 
 ### What happens when the quota is exceeded?
 If the Gemini API returns status `429 Too Many Requests`, RepoPilot AI instantly and seamlessly falls back to the deterministic Stack Analyzer to deliver an accurate README.md without interrupting the user's publication flow.
+

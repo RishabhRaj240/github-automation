@@ -22,9 +22,12 @@ interface RepoPilotContextType {
   setMetadata: React.Dispatch<React.SetStateAction<ProjectMetadata>>;
   setReadmeContent: (content: string) => void;
   addFile: (path: string, content?: string) => { success: boolean; error?: string };
+  addLanguageFile: (lang: string) => { success: boolean; error?: string };
   updateFileContent: (id: string, content: string) => void;
+  updateFileLanguage: (id: string, language: string) => void;
   deleteFile: (id: string) => void;
   renameFile: (id: string, newPath: string) => { success: boolean; error?: string };
+  clearAllFiles: () => void;
   loadStarterTemplate: (templateId: string) => void;
   handleFileUpload: (uploadedFiles: FileList | File[]) => Promise<void>;
   generateReadme: () => Promise<void>;
@@ -138,6 +141,123 @@ export const RepoPilotProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setFiles((prev) =>
       prev.map((f) => (f.id === id ? { ...f, content, size: new Blob([content]).size } : f))
     );
+  };
+
+  const updateFileLanguage = (id: string, language: string) => {
+    setFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, language } : f))
+    );
+  };
+
+  const clearAllFiles = () => {
+    setFiles([]);
+    setActiveFileId('');
+  };
+
+  const addLanguageFile = (lang: string): { success: boolean; error?: string } => {
+    const defaults: Record<string, { path: string; content: string; language: string }> = {
+      html: {
+        path: 'index.html',
+        language: 'html',
+        content: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Web Page</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; background: #0a0d14; color: #fff; }
+    h1 { color: #38bdf8; }
+  </style>
+</head>
+<body>
+  <h1>Hello from HTML5</h1>
+  <p>Published with RepoPilot AI.</p>
+</body>
+</html>`,
+      },
+      cpp: {
+        path: 'main.cpp',
+        language: 'cpp',
+        content: `#include <iostream>
+
+int main() {
+    std::cout << "Hello, C++ World from RepoPilot AI!" << std::endl;
+    return 0;
+}`,
+      },
+      c: {
+        path: 'main.c',
+        language: 'c',
+        content: `#include <stdio.h>
+
+int main() {
+    printf("Hello from C!\\n");
+    return 0;
+}`,
+      },
+      python: {
+        path: 'main.py',
+        language: 'python',
+        content: `def main():
+    print("Hello from Python!")
+
+if __name__ == "__main__":
+    main()`,
+      },
+      javascript: {
+        path: 'index.js',
+        language: 'javascript',
+        content: `console.log("Hello from JavaScript!");`,
+      },
+      typescript: {
+        path: 'index.ts',
+        language: 'typescript',
+        content: `const greeting: string = "Hello from TypeScript!";
+console.log(greeting);`,
+      },
+      css: {
+        path: 'styles.css',
+        language: 'css',
+        content: `/* Custom CSS */
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}`,
+      },
+      java: {
+        path: 'Main.java',
+        language: 'java',
+        content: `public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello from Java!");
+    }
+}`,
+      },
+      markdown: {
+        path: 'NOTES.md',
+        language: 'markdown',
+        content: `# Project Notes\n\n- Add your notes here`,
+      },
+    };
+
+    const selected = defaults[lang.toLowerCase()] || {
+      path: `file.${lang}`,
+      language: lang,
+      content: `// New ${lang} file`,
+    };
+
+    let finalPath = selected.path;
+    let counter = 1;
+    while (files.some((f) => f.path.toLowerCase() === finalPath.toLowerCase())) {
+      const ext = selected.path.includes('.') ? `.${selected.path.split('.').pop()}` : '';
+      const base = selected.path.replace(ext, '');
+      finalPath = `${base}-${counter}${ext}`;
+      counter++;
+    }
+
+    return addFile(finalPath, selected.content);
   };
 
   const deleteFile = (id: string) => {
@@ -320,9 +440,12 @@ export const RepoPilotProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setMetadata,
         setReadmeContent,
         addFile,
+        addLanguageFile,
         updateFileContent,
+        updateFileLanguage,
         deleteFile,
         renameFile,
+        clearAllFiles,
         loadStarterTemplate,
         handleFileUpload,
         generateReadme,
@@ -342,3 +465,4 @@ export const useRepoPilot = () => {
   }
   return context;
 };
+

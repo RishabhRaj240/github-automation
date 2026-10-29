@@ -68,20 +68,36 @@ export const SettingsPage: React.FC = () => {
     setKeyTestResult(null);
 
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeyInput.trim()}`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: 'Respond with the word "Connected" if you can read this.' }] }],
-        }),
-      });
+      const modelsToTry = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      let verified = false;
+      let lastErrorMessage = '';
 
-      if (res.ok) {
-        setKeyTestResult('Success! Google Gemini Flash API is connected and verified.');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setKeyTestResult(`Error: ${data.error?.message || 'Invalid API key or quota exceeded'}`);
+      for (const model of modelsToTry) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKeyInput.trim()}`;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: 'Respond with the word "Connected" if you can read this.' }] }],
+            }),
+          });
+
+          if (res.ok) {
+            setKeyTestResult(`Success! Google Gemini (${model}) is connected and verified.`);
+            verified = true;
+            break;
+          } else {
+            const data = await res.json().catch(() => ({}));
+            lastErrorMessage = data.error?.message || `Status ${res.status}`;
+          }
+        } catch (err) {
+          lastErrorMessage = err instanceof Error ? err.message : 'Network error';
+        }
+      }
+
+      if (!verified) {
+        setKeyTestResult(`Error: ${lastErrorMessage || 'Invalid API key or quota exceeded'}`);
       }
     } catch (err) {
       setKeyTestResult(`Connection failed: ${err instanceof Error ? err.message : 'Network error'}`);

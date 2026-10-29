@@ -3,7 +3,6 @@ import {
   FileCode,
   FileText,
   FileJson,
-  FolderPlus,
   FilePlus,
   Trash2,
   Edit2,
@@ -11,6 +10,8 @@ import {
   Upload,
   FolderOpen,
   Sparkles,
+  Plus,
+  Eraser,
 } from 'lucide-react';
 import { useRepoPilot } from '../context/RepoPilotContext';
 import { STARTER_TEMPLATES } from '../lib/templates';
@@ -21,8 +22,10 @@ export const FileTree: React.FC = () => {
     activeFileId,
     setActiveFileId,
     addFile,
+    addLanguageFile,
     deleteFile,
     renameFile,
+    clearAllFiles,
     secretFindings,
     loadStarterTemplate,
     handleFileUpload,
@@ -35,7 +38,6 @@ export const FileTree: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const handleCreateFile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +70,11 @@ export const FileTree: React.FC = () => {
     const p = path.toLowerCase();
     if (p.endsWith('.json')) return <FileJson className="w-4 h-4 text-amber-400 shrink-0" />;
     if (p.endsWith('.md') || p.endsWith('.txt')) return <FileText className="w-4 h-4 text-emerald-400 shrink-0" />;
+    if (p.endsWith('.html') || p.endsWith('.htm')) return <FileCode className="w-4 h-4 text-orange-400 shrink-0" />;
+    if (p.endsWith('.cpp') || p.endsWith('.cc') || p.endsWith('.cxx') || p.endsWith('.h') || p.endsWith('.hpp')) {
+      return <FileCode className="w-4 h-4 text-blue-400 shrink-0" />;
+    }
+    if (p.endsWith('.py')) return <FileCode className="w-4 h-4 text-yellow-400 shrink-0" />;
     return <FileCode className="w-4 h-4 text-cyan-400 shrink-0" />;
   };
 
@@ -87,18 +94,31 @@ export const FileTree: React.FC = () => {
               setIsAddingFile(true);
               setNewFilePath('');
             }}
-            title="New File"
+            title="New Custom File"
             className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition"
           >
             <FilePlus className="w-4 h-4" />
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            title="Upload Files"
+            title="Upload Files from Computer"
             className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition"
           >
             <Upload className="w-4 h-4" />
           </button>
+          {files.length > 0 && (
+            <button
+              onClick={() => {
+                if (window.confirm('Clear all files in workspace?')) {
+                  clearAllFiles();
+                }
+              }}
+              title="Clear all files"
+              className="p-1 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded transition"
+            >
+              <Eraser className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -118,7 +138,7 @@ export const FileTree: React.FC = () => {
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-brand-400" />
-            Template:
+            Preset:
           </span>
           <select
             onChange={(e) => loadStarterTemplate(e.target.value)}
@@ -133,13 +153,50 @@ export const FileTree: React.FC = () => {
         </div>
       </div>
 
+      {/* Quick Add Language Buttons */}
+      <div className="px-2 py-1.5 border-b border-slate-800/60 bg-slate-950/40">
+        <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-1">
+          + Add Language File:
+        </div>
+        <div className="grid grid-cols-4 gap-1">
+          <button
+            onClick={() => addLanguageFile('html')}
+            title="Add index.html file"
+            className="px-1.5 py-1 text-[10px] font-mono rounded bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 border border-orange-500/30 transition text-center"
+          >
+            + HTML
+          </button>
+          <button
+            onClick={() => addLanguageFile('cpp')}
+            title="Add main.cpp file"
+            className="px-1.5 py-1 text-[10px] font-mono rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 transition text-center"
+          >
+            + C++
+          </button>
+          <button
+            onClick={() => addLanguageFile('python')}
+            title="Add main.py file"
+            className="px-1.5 py-1 text-[10px] font-mono rounded bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 transition text-center"
+          >
+            + Python
+          </button>
+          <button
+            onClick={() => addLanguageFile('javascript')}
+            title="Add index.js file"
+            className="px-1.5 py-1 text-[10px] font-mono rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition text-center"
+          >
+            + JS
+          </button>
+        </div>
+      </div>
+
       {/* Inline New File Form */}
       {isAddingFile && (
         <form onSubmit={handleCreateFile} className="p-2 bg-slate-800/60 border-b border-slate-700">
           <input
             type="text"
             autoFocus
-            placeholder="e.g. src/index.ts"
+            placeholder="e.g. index.html or main.cpp"
             value={newFilePath}
             onChange={(e) => setNewFilePath(e.target.value)}
             className="w-full text-xs px-2 py-1 bg-slate-900 text-white border border-slate-700 rounded focus:border-brand-500 focus:outline-none font-mono"
@@ -169,8 +226,34 @@ export const FileTree: React.FC = () => {
       {/* Files List */}
       <div className="flex-1 overflow-y-auto py-1">
         {files.length === 0 ? (
-          <div className="p-4 text-center text-xs text-slate-500">
-            No files in project. Click &ldquo;+&rdquo; or load a starter template.
+          <div className="p-5 text-center space-y-3">
+            <div className="text-xs text-slate-400 font-medium">Workspace is empty.</div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Upload your files, or quickly create an HTML or C++ file:
+            </p>
+            <div className="space-y-1.5 pt-1">
+              <button
+                onClick={() => addLanguageFile('html')}
+                className="w-full py-1.5 px-2 bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/40 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create index.html</span>
+              </button>
+              <button
+                onClick={() => addLanguageFile('cpp')}
+                className="w-full py-1.5 px-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create main.cpp</span>
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload Local Files</span>
+              </button>
+            </div>
           </div>
         ) : (
           files.map((file) => {
@@ -244,9 +327,7 @@ export const FileTree: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (files.length > 1) {
-                              deleteFile(file.id);
-                            }
+                            deleteFile(file.id);
                           }}
                           className="p-1 text-slate-500 hover:text-rose-400"
                           title="Delete file"
@@ -265,7 +346,7 @@ export const FileTree: React.FC = () => {
 
       {/* Drag & Drop Prompt footer */}
       <div className="p-3 border-t border-slate-800 text-[11px] text-slate-500 text-center">
-        Drag &amp; drop files or folders directly into workspace
+        Drop files or choose a preset above
       </div>
     </div>
   );

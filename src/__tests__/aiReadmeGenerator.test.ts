@@ -119,3 +119,4 @@ describe('AI & Stack Detection: README Generation Quality', () => {
     expect(readme).toContain('MIT');
   });
 });
+
