@@ -1,5 +1,6 @@
 import { ProjectFile, ProjectMetadata, PublishResult, RepoVisibility } from '../types';
 import { sanitizeFilePath, validateRepositoryName } from '../lib/secretScanner';
+import { generateDeterministicReadme } from './aiService';
 
 export interface GitHubUser {
   id: number;
@@ -127,14 +128,19 @@ export class GitHubService {
       throw new Error(nameValidation.error || 'Invalid repository name');
     }
 
+    // Ensure README.md is always included and never empty
+    const finalReadme = readmeContent?.trim()
+      ? readmeContent
+      : generateDeterministicReadme(metadata, files, owner);
+
     // Assemble all files including README.md
     const allFiles: ProjectFile[] = [
       ...files.filter((f) => f.path.toLowerCase() !== 'readme.md'),
       {
         id: 'readme',
         path: 'README.md',
-        content: readmeContent,
-        size: new Blob([readmeContent]).size,
+        content: finalReadme,
+        size: new Blob([finalReadme]).size,
         language: 'markdown',
       },
     ];
