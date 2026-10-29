@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { RepoPilotProvider } from './context/RepoPilotContext';
+import { PurpleGradientMouse } from './components/PurpleGradientMouse';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { LandingPage } from './pages/LandingPage';
@@ -27,7 +28,9 @@ export const App: React.FC = () => {
       <AuthProvider>
         <RepoPilotProvider>
           <BrowserRouter>
-            <div className="flex flex-col min-h-screen bg-[#0a0d14] text-slate-100 font-sans selection:bg-brand-500/30 selection:text-brand-200">
+            <div className="flex flex-col min-h-screen bg-[#0a0d14] text-slate-100 font-sans selection:bg-brand-500/30 selection:text-brand-200 relative">
+              {/* Global Purple Gradient Mouse Movement Animation & Ambient Auroras */}
+              <PurpleGradientMouse />
               <Navbar />
               <main className="flex-1">
                 <Routes>

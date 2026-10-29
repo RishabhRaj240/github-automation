@@ -253,3 +253,4 @@ export const BentoGrid: React.FC = () => {
     </section>
   );
 };
+

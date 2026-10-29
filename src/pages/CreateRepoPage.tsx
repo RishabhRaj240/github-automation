@@ -68,7 +68,7 @@ export const CreateRepoPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-[#0a0d14] text-slate-100 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-4rem)] bg-transparent text-slate-100 overflow-hidden relative z-10">
       {/* Top Project Configuration Bar */}
       <div className="bg-[#0e1320] border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
         {/* Left: Project Name & Target Owner */}

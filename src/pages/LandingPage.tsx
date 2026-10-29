@@ -19,7 +19,6 @@ import {
   Cpu,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { InteractiveBackground } from '../components/InteractiveBackground';
 import { SpotlightCard } from '../components/SpotlightCard';
 import { BentoGrid } from '../components/BentoGrid';
 
@@ -56,10 +55,7 @@ export const LandingPage: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#0a0d14] text-slate-100 overflow-x-hidden relative">
-      {/* Interactive Canvas Starfield & Animated Aurora Beams */}
-      <InteractiveBackground />
-
+    <div className="flex flex-col min-h-screen bg-transparent text-slate-100 overflow-x-hidden relative">
       {/* Hero Section */}
       <section className="relative z-10 pt-20 pb-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto text-center">
         {/* Release Pill with Gradient Border */}

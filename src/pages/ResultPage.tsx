@@ -52,7 +52,7 @@ export const ResultPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0d14] text-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-transparent text-slate-100 py-12 px-4 sm:px-6 lg:px-8 relative z-10">
       <div className="max-w-3xl mx-auto space-y-8">
         {/* Celebration Header */}
         <div className="text-center space-y-3">

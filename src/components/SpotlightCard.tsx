@@ -57,3 +57,4 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
     </div>
   );
 };
+

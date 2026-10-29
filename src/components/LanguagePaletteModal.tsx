@@ -127,3 +127,4 @@ export const LanguagePaletteModal: React.FC<LanguagePaletteModalProps> = ({
     </div>
   );
 };
+
