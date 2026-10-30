@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   });
   const [githubAccessToken, setGithubAccessToken] = useState<string | null>(() => {
-    return localStorage.getItem('repopilot_gh_token') || null;
+    return localStorage.getItem('repopilot_gh_token') || (import.meta.env.VITE_GITHUB_TOKEN as string) || null;
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
@@ -135,6 +135,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
             setGithubConnection(newConn);
             localStorage.setItem('repopilot_gh_conn', JSON.stringify(newConn));
+          }
+        }
+
+        const envToken = import.meta.env.VITE_GITHUB_TOKEN as string;
+        const currentToken = localStorage.getItem('repopilot_gh_token') || envToken;
+        if (currentToken) {
+          saveGithubAccessToken(currentToken);
+          if (!githubConnection) {
+            connectGitHubWithToken(currentToken);
           }
         }
       } catch (err) {
