@@ -27,6 +27,11 @@ const IGNORED_FILES = new Set([
   '.ds_store',
   'thumbs.db',
   'desktop.ini',
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.production',
+  '.env.test',
 ]);
 
 const BINARY_EXTENSIONS = new Set([

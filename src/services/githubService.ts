@@ -140,9 +140,16 @@ export class GitHubService {
       ? readmeContent
       : generateDeterministicReadme(metadata, files, owner);
 
-    // Assemble all files including README.md
+    // Assemble all files including README.md (strictly excluding .env credential files)
     const allFiles: ProjectFile[] = [
-      ...files.filter((f) => f.path.toLowerCase() !== 'readme.md'),
+      ...files.filter((f) => {
+        const lower = f.path.toLowerCase();
+        if (lower === 'readme.md') return false;
+        if (lower === '.env' || lower.startsWith('.env.') || lower.endsWith('/.env') || lower.includes('/.env.')) {
+          return false;
+        }
+        return true;
+      }),
       {
         id: 'readme',
         path: 'README.md',
