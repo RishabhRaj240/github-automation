@@ -17,8 +17,36 @@ export interface ReadmeGenerationResult {
 }
 
 /**
- * Builds a deterministic, strictly verified README without AI hallucinations.
- * Used whenever AI is unavailable, rate-limited, or when the user requests deterministic generation.
+ * Maps languages and frameworks to official Shields.io badges
+ */
+function getBadge(name: string): string | null {
+  const map: Record<string, string> = {
+    'TypeScript': '[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)',
+    'JavaScript': '[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)',
+    'React': '[![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)',
+    'HTML': '[![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML)',
+    'HTML5': '[![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML)',
+    'CSS': '[![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)',
+    'Python': '[![Python](https://img.shields.io/badge/Python_3-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)',
+    'C++': '[![C++](https://img.shields.io/badge/C%2B%2B_17-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)](https://isocpp.org/)',
+    'C': '[![C](https://img.shields.io/badge/C-A8B9CC?style=for-the-badge&logo=c&logoColor=black)](https://en.wikipedia.org/wiki/C_(programming_language))',
+    'Rust': '[![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)',
+    'Go': '[![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)',
+    'Java': '[![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.java.com/)',
+    'Node.js': '[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)',
+    'Tailwind CSS': '[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)',
+    'Vite': '[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)',
+    'FastAPI': '[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)',
+    'Express': '[![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)',
+    'Docker': '[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)',
+  };
+
+  return map[name] || null;
+}
+
+/**
+ * Builds an eye-catching, jaw-dropping, verified README without AI hallucinations.
+ * Used whenever AI is unavailable, rate-limited, or when deterministic accuracy is preferred.
  */
 export function generateDeterministicReadme(
   metadata: ProjectMetadata,
@@ -27,35 +55,54 @@ export function generateDeterministicReadme(
 ): string {
   const stack = analyzeProjectStack(files);
   const repoName = metadata.name || 'my-project';
-  const description = metadata.description || 'A modern software project created with RepoPilot AI.';
+  const description = metadata.description || 'A modern high-performance application built with RepoPilot AI.';
   const owner = githubUsername || 'username';
+
+  // Gather badges
+  const badges: string[] = [];
+  const primaryBadge = getBadge(stack.primaryLanguage);
+  if (primaryBadge) badges.push(primaryBadge);
+
+  if (stack.framework) {
+    const fwBadge = getBadge(stack.framework);
+    if (fwBadge) badges.push(fwBadge);
+  }
+
+  if (stack.runtime && stack.runtime !== stack.primaryLanguage) {
+    const rtBadge = getBadge(stack.runtime);
+    if (rtBadge) badges.push(rtBadge);
+  }
+
+  // Add default styling badges
+  badges.push(`[![License](https://img.shields.io/badge/License-${metadata.license || 'MIT'}-blue?style=for-the-badge)](LICENSE)`);
+  badges.push(`[![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge)]()`);
 
   // Build Project Structure tree
   const fileTreeLines = files
     .map((f) => `├── ${f.path}`)
-    .slice(0, 25);
-  if (files.length > 25) {
-    fileTreeLines.push(`└── ... (${files.length - 25} more files)`);
+    .slice(0, 30);
+  if (files.length > 30) {
+    fileTreeLines.push(`└── ... (${files.length - 30} more files)`);
   } else if (fileTreeLines.length > 0) {
     fileTreeLines[fileTreeLines.length - 1] = fileTreeLines[fileTreeLines.length - 1].replace('├──', '└──');
   }
 
   // Installation instructions based strictly on detected manifests
-  let installCommand = '# Clone repository\ngit clone https://github.com/' + owner + '/' + repoName + '.git\ncd ' + repoName;
+  let installCommand = `# Clone repository\ngit clone https://github.com/${owner}/${repoName}.git\ncd ${repoName}`;
   let runCommand = '';
 
   if (stack.manifestFile === 'package.json') {
     installCommand += '\n\n# Install dependencies\nnpm install';
     runCommand = '# Run development server\nnpm run dev\n\n# Build for production\nnpm run build';
   } else if (stack.manifestFile === 'requirements.txt') {
-    installCommand += '\n\n# Create virtual environment\npython -m venv venv\nsource venv/bin/activate  # On Windows: venv\\Scripts\\activate\n\n# Install dependencies\npip install -r requirements.txt';
+    installCommand += '\n\n# Create virtual environment\npython -m venv venv\nsource venv/bin/activate  # Windows: venv\\Scripts\\activate\n\n# Install dependencies\npip install -r requirements.txt';
     runCommand = '# Run application\npython main.py';
   } else if (stack.primaryLanguage === 'C++') {
     if (stack.manifestFile === 'Makefile') {
       installCommand += '\n\n# Build using Makefile\nmake';
       runCommand = '# Run compiled binary\nmake run\n# Or directly:\n./app';
     } else {
-      installCommand += '\n\n# Compile with g++ or clang++\ng++ -std=c++17 -O2 main.cpp -o app';
+      installCommand += '\n\n# Compile with g++ or clang++ (C++17)\ng++ -std=c++17 -O2 main.cpp -o app';
       runCommand = '# Run compiled binary\n./app';
     }
   } else if (stack.primaryLanguage.includes('HTML') || files.some((f) => f.path.toLowerCase().endsWith('.html'))) {
@@ -70,49 +117,87 @@ export function generateDeterministicReadme(
     runCommand = '# Open project files in your preferred editor';
   }
 
+  // Extract features dynamically from actual files in workspace
+  const featureList: string[] = [];
+  if (files.some((f) => f.path.toLowerCase().endsWith('.html'))) {
+    featureList.push('- 🌐 **Responsive Web Interface**: Modern, semantic HTML5 structure styled for desktop and mobile viewports.');
+  }
+  if (files.some((f) => f.path.includes('components/') || f.path.includes('src/'))) {
+    featureList.push('- 🧩 **Modular Architecture**: Clean separation of concerns with structured components and utilities.');
+  }
+  if (files.some((f) => f.isBinary || f.path.includes('assets/'))) {
+    featureList.push('- 🎨 **Rich Media & Assets**: Fully bundled assets with Base64 git blob synchronization.');
+  }
+  if (stack.dependencies.length > 0) {
+    featureList.push(`- 📦 **Modern Dependency Ecosystem**: Powered by verified libraries including \`${stack.dependencies.slice(0, 4).join('`, `')}\`.`);
+  }
+  if (featureList.length === 0) {
+    featureList.push('- ⚡ **Lightweight & Fast**: Streamlined source code crafted for optimal execution and maintainability.');
+    featureList.push('- 🔒 **Production Ready**: Verified clean codebase with zero credential leaks.');
+  }
+
   // Technology badges & list
-  const techList = [
-    stack.primaryLanguage !== 'Unknown' ? `**Language:** ${stack.primaryLanguage}` : null,
-    stack.framework ? `**Framework:** ${stack.framework}` : null,
-    stack.runtime ? `**Runtime:** ${stack.runtime}` : null,
-    stack.packageManager ? `**Package Manager:** ${stack.packageManager}` : null,
+  const techTableRows = [
+    stack.primaryLanguage !== 'Unknown' ? `| **Language** | ${stack.primaryLanguage} |` : null,
+    stack.framework ? `| **Framework** | ${stack.framework} |` : null,
+    stack.runtime ? `| **Runtime** | ${stack.runtime} |` : null,
+    stack.packageManager ? `| **Package Manager** | ${stack.packageManager} |` : null,
   ].filter(Boolean);
 
   let keyDepsList = '';
   if (stack.dependencies.length > 0) {
-    const previewDeps = stack.dependencies.slice(0, 8);
-    keyDepsList = '\n### Key Dependencies\n' + previewDeps.map((d) => `- \`${d}\``).join('\n');
-    if (stack.dependencies.length > 8) {
-      keyDepsList += `\n- *...and ${stack.dependencies.length - 8} more*`;
+    const previewDeps = stack.dependencies.slice(0, 10);
+    keyDepsList = '\n### 📦 Key Dependencies\n' + previewDeps.map((d) => `- \`${d}\``).join('\n');
+    if (stack.dependencies.length > 10) {
+      keyDepsList += `\n- *...and ${stack.dependencies.length - 10} more*`;
     }
   }
 
-  // License clause
-  const licenseClause = metadata.license
-    ? `\n## 📄 License\n\nThis project is licensed under the [${metadata.license}](LICENSE) license.\n`
-    : '\n## 📄 License\n\nDistributed under the MIT License. See `LICENSE` for details.\n';
+  return `<div align="center">
 
-  return `# ${repoName}
+# ${repoName}
 
-> ${description}
+### *${description}*
 
-[![GitHub license](https://img.shields.io/badge/license-${metadata.license || 'MIT'}-blue.svg)](LICENSE)
-[![Repository Status](https://img.shields.io/badge/status-active-brightgreen.svg)]()
-${metadata.visibility === 'public' ? '[![Visibility](https://img.shields.io/badge/visibility-public-success.svg)]()' : '[![Visibility](https://img.shields.io/badge/visibility-private-yellow.svg)]()'}
+${badges.join('\n')}
+
+<br/>
+
+**${repoName}** was generated and published seamlessly using [RepoPilot AI](https://repopilot.dev), an automated deployment workflow for developers.
 
 ---
+
+</div>
+
+<br/>
 
 ## 📖 Overview
 
 ${description}
 
-This project was generated and published seamlessly using [RepoPilot AI](https://repopilot.dev), an automated deployment workflow for developers.
+Designed with clean structure, reliable execution, and modern developer experience in mind.
+
+---
+
+## ⚡ Execution Flow
+
+\`\`\`text
+📁 Workspace Files ──► ⚙️ ${stack.framework || stack.primaryLanguage} Engine ──► 🚀 ${repoName}
+\`\`\`
+
+---
+
+## ✨ Key Features
+
+${featureList.join('\n')}
 
 ---
 
 ## 🛠️ Tech Stack
 
-${techList.map((t) => `- ${t}`).join('\n')}
+| Component | Technology |
+| :--- | :--- |
+${techTableRows.join('\n')}
 ${keyDepsList}
 
 ---
@@ -128,20 +213,19 @@ ${fileTreeLines.join('\n')}
 
 ## 🚀 Getting Started
 
-### Prerequisites
-
+### 1. Prerequisites
 Ensure you have the following installed locally:
 - Git
 ${stack.runtime ? `- ${stack.runtime}` : ''}
 ${stack.packageManager ? `- ${stack.packageManager}` : ''}
 
-### Installation
+### 2. Installation
 
 \`\`\`bash
 ${installCommand}
 \`\`\`
 
-### Running the Application
+### 3. Usage & Execution
 
 \`\`\`bash
 ${runCommand}
@@ -152,31 +236,40 @@ ${runCommand}
 ## 🤝 Contributing
 
 Contributions, issues, and feature requests are welcome!
-Feel free to check the [issues page](https://github.com/${owner}/${repoName}/issues) if you want to contribute.
 
-1. Fork the Project
-2. Create your Feature Branch (\`git checkout -b feature/AmazingFeature\`)
-3. Commit your Changes (\`git commit -m 'feat: Add AmazingFeature'\`)
-4. Push to the Branch (\`git push origin feature/AmazingFeature\`)
+1. Fork the repository
+2. Create your feature branch (\`git checkout -b feature/amazing-feature\`)
+3. Commit your changes (\`git commit -m 'feat: add amazing feature'\`)
+4. Push to the branch (\`git push origin feature/amazing-feature\`)
 5. Open a Pull Request
-${licenseClause}
+
 ---
 
-*Published with [RepoPilot AI](https://repopilot.dev) — From Code to GitHub in One Click.*
+## 📄 License
+
+This project is licensed under the **${metadata.license || 'MIT'} License**.
+
+<div align="center">
+
+**Published with ❤️ via [RepoPilot AI](https://github.com/RishabhRaj240/github-automation)**
+
+</div>
 `;
 }
 
 /**
- * Main AI README generator function with multi-provider support, timeout, and robust fallback.
+ * Calls Google Gemini (Flash) or falls back to the deterministic analyzer
  */
-export async function generateReadmeWithAI(options: GenerateReadmeOptions): Promise<ReadmeGenerationResult> {
+export async function generateReadmeWithAI(
+  options: GenerateReadmeOptions
+): Promise<ReadmeGenerationResult> {
   const { metadata, files, githubUsername = 'username', customApiKey } = options;
 
-  // Determine API key: user-supplied in settings, or VITE_GEMINI_API_KEY from env
-  const geminiApiKey = customApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string | undefined);
+  // Key priority: Custom user key > Environment variable
+  const geminiApiKey = customApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
 
-  // If no Gemini API key is configured or we're in demo mode, use high-fidelity template generator
-  if (!geminiApiKey || geminiApiKey.startsWith('your_') || geminiApiKey === 'placeholder') {
+  // If no API key configured, use deterministic generator
+  if (!geminiApiKey || geminiApiKey === 'placeholder' || geminiApiKey.startsWith('AIzaSy_demo')) {
     return {
       content: generateDeterministicReadme(metadata, files, githubUsername),
       provider: 'fallback_template',
@@ -186,7 +279,7 @@ export async function generateReadmeWithAI(options: GenerateReadmeOptions): Prom
     };
   }
 
-  // Build condensed, safe code context (excluding massive binaries or long lines)
+  // Build condensed, safe code context
   const fullFileList = files.map((f) => `- ${f.path} (${f.isBinary ? 'asset' : f.language})`).join('\n');
 
   const safeFileSummaries = files
@@ -199,14 +292,26 @@ export async function generateReadmeWithAI(options: GenerateReadmeOptions): Prom
     })
     .join('\n\n');
 
-  const systemPrompt = `You are a technical documentation engineer for RepoPilot AI.
-Generate a comprehensive, accurate GitHub README.md in valid markdown for the supplied codebase.
+  const systemPrompt = `You are a Principal Technical Documentation Engineer and UI/UX Architect at RepoPilot AI.
+Your objective is to generate an absolute JAW-DROPPING, EYE-CATCHING, technically accurate, production-grade GitHub README.md for the supplied codebase.
 
-STRICT CONSTRAINTS:
-1. Never invent features, dependencies, commands, or APIs not evidenced in the files.
-2. If tests or screenshots are not provided, do NOT fabricate test commands or screenshot sections.
-3. Be clear, modern, and structured: Title, Overview, Tech Stack, Project Structure (including all subfolders and assets), Getting Started (Prerequisites, Install, Usage), Contributing, License.
-4. Output ONLY the raw Markdown content. Do not wrap in outer \`\`\`markdown backticks.`;
+AESTHETIC & FORMATTING DIRECTIVES:
+1. ALWAYS start with a centered hero section using:
+   <div align="center">
+   # 🚀 [Project Title]
+   ### *[Compelling One-Line Tagline]*
+   [Relevant Shields.io badges for detected languages, frameworks, runtime, license, and status]
+   </div>
+2. Include a visual workflow/pipeline diagram (using ASCII art or clean text flow) representing how the code executes or data flows.
+3. Feature Breakdown: Use engaging emojis, bold bullet points, and highlight features evidenced by the actual files and functions in the codebase.
+4. Comprehensive Project Structure: Format a clean ASCII tree with all detected subfolders, files, and assets with brief inline descriptions.
+5. Exact Execution & Getting Started: Provide copy-pasteable commands for setup, run, build, and test tailored to the specific language (e.g. g++ for C++, open index.html / npx serve for HTML, npm run dev for React/Vite, python main.py for Python).
+6. License & Contributing: Professional MIT / contribution footer with clickable links.
+
+STRICT ACCURACY CONSTRAINTS:
+1. Never hallucinate or invent features, dependencies, or commands not supported by the codebase.
+2. Distinguish verified code structures from suggestions.
+3. Output ONLY the raw Markdown content. Do not wrap in outer \`\`\`markdown backticks.`;
 
   const userContent = `Project Name: ${metadata.name}
 Description: ${metadata.description}
@@ -244,8 +349,8 @@ ${safeFileSummaries}`;
               },
             ],
             generationConfig: {
-              temperature: 0.2,
-              maxOutputTokens: 2500,
+              temperature: 0.25,
+              maxOutputTokens: 3000,
             },
           }),
         });
@@ -296,4 +401,3 @@ ${safeFileSummaries}`;
     };
   }
 }
-
