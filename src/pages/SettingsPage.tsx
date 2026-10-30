@@ -233,7 +233,12 @@ export const SettingsPage: React.FC = () => {
               <div className="flex flex-col sm:flex-row gap-3 items-center">
                 <button
                   type="button"
-                  onClick={signInWithGitHubOAuth}
+                  onClick={async () => {
+                    const res = await signInWithGitHubOAuth();
+                    if (!res.success && res.error) {
+                      setTokenMsg({ text: res.error, error: true });
+                    }
+                  }}
                   className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 transition"
                 >
                   <GithubIcon className="w-4 h-4 text-white" />

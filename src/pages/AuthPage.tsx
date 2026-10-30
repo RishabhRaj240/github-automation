@@ -82,7 +82,13 @@ export const AuthPage: React.FC = () => {
           <div>
             <button
               type="button"
-              onClick={signInWithGitHubOAuth}
+              onClick={async () => {
+                setErrorMsg(null);
+                const res = await signInWithGitHubOAuth();
+                if (!res.success && res.error) {
+                  setErrorMsg(res.error);
+                }
+              }}
               className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-white text-xs font-semibold shadow-sm transition"
             >
               <GithubIcon className="w-4 h-4 text-white" />

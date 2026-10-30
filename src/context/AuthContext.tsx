@@ -14,7 +14,7 @@ interface AuthContextType {
   setGithubAccessToken: (token: string | null) => void;
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
   signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<{ error?: string }>;
-  signInWithGitHubOAuth: () => Promise<void>;
+  signInWithGitHubOAuth: () => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   enableDemoMode: () => void;
   disableDemoMode: () => void;
@@ -223,19 +223,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return {};
   };
 
-  const signInWithGitHubOAuth = async () => {
+  const signInWithGitHubOAuth = async (): Promise<{ success: boolean; error?: string }> => {
     if (isDemoMode) {
       setUser(DEMO_USER);
       setGithubConnection(DEMO_GITHUB);
-      return;
+      return { success: true };
     }
-    await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        scopes: 'repo read:user user:email',
-        redirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          scopes: 'repo read:user user:email',
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to initiate GitHub OAuth',
+      };
+    }
   };
 
   const signOut = async () => {
