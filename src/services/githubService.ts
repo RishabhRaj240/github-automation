@@ -86,6 +86,13 @@ export class GitHubService {
         return { available: true };
       }
 
+      if (response.status === 401) {
+        return {
+          available: false,
+          error: 'Bad credentials: Your GitHub token is invalid or expired. Please enter a fresh Personal Access Token with "repo" scope.',
+        };
+      }
+
       if (response.status === 200) {
         return {
           available: false,
@@ -185,6 +192,9 @@ export class GitHubService {
     });
 
     if (!createRepoRes.ok) {
+      if (createRepoRes.status === 401) {
+        throw new Error('Bad credentials: Your GitHub token is invalid or expired. Please enter a fresh Personal Access Token with "repo" scope.');
+      }
       const err = await createRepoRes.json().catch(() => ({}));
       throw new Error(err.message || `Failed to create repository on GitHub (Status ${createRepoRes.status})`);
     }

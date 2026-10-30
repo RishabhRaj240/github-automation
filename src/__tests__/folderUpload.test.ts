@@ -78,3 +78,4 @@ describe('Folder Upload & Recursive Traversal', () => {
     expect(result.files.some((f) => f.path.includes('node_modules'))).toBe(false);
   });
 });
+
