@@ -25,6 +25,9 @@ export interface ProjectFile {
   content: string;
   size: number;
   language: string;
+  encoding?: 'utf-8' | 'base64';
+  isBinary?: boolean;
+  mimeType?: string;
 }
 
 export interface SecretFinding {

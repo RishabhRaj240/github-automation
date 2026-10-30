@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Copy, Check, AlertOctagon, Terminal } from 'lucide-react';
+import { Copy, Check, AlertOctagon, Terminal, FileBox, Image as ImageIcon } from 'lucide-react';
 import { useRepoPilot } from '../context/RepoPilotContext';
 
 export const CodeEditor: React.FC = () => {
@@ -13,7 +13,73 @@ export const CodeEditor: React.FC = () => {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0d14] text-slate-500 text-sm">
         <Terminal className="w-8 h-8 mb-2 text-slate-600" />
-        Select a file from the explorer to begin editing.
+        Select a file from the explorer or drop a project folder to begin.
+      </div>
+    );
+  }
+
+  // Handle Binary Assets (Images, Icons, Media)
+  if (activeFile.isBinary) {
+    const isImage =
+      activeFile.mimeType?.startsWith('image/') ||
+      /\.(png|jpe?g|gif|webp|svg|ico|bmp)$/i.test(activeFile.path);
+
+    const dataUrl =
+      activeFile.encoding === 'base64'
+        ? `data:${activeFile.mimeType || 'image/png'};base64,${activeFile.content}`
+        : '';
+
+    return (
+      <div className="flex-1 flex flex-col h-full bg-[#0a0d14] overflow-hidden">
+        {/* Editor Header */}
+        <div className="h-10 bg-[#0d111a] border-b border-slate-800 px-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-mono font-medium text-slate-200">
+              {activeFile.path}
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono uppercase border border-purple-500/30">
+              Binary Asset
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-500 font-mono">
+            <span>{activeFile.mimeType || 'binary'}</span>
+            <span>{(activeFile.size / 1024).toFixed(1)} KB</span>
+          </div>
+        </div>
+
+        {/* Asset Preview Area */}
+        <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-y-auto">
+          {isImage && dataUrl ? (
+            <div className="flex flex-col items-center max-w-lg">
+              <div className="p-4 rounded-2xl bg-[#101522] border border-slate-800 shadow-2xl mb-4 max-h-[60vh] overflow-hidden flex items-center justify-center">
+                <img
+                  src={dataUrl}
+                  alt={activeFile.path}
+                  className="max-h-[50vh] max-w-full object-contain rounded-lg shadow-md"
+                />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-xs font-mono text-slate-300">{activeFile.path}</p>
+                <p className="text-[11px] text-slate-500 font-mono">
+                  {(activeFile.size / 1024).toFixed(1)} KB &bull; Base64 encoded for GitHub Git Database commit
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center space-y-3">
+              <div className="w-16 h-16 rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-300 flex items-center justify-center mx-auto shadow-lg shadow-purple-500/10">
+                <FileBox className="w-8 h-8" />
+              </div>
+              <h4 className="text-sm font-semibold text-white">{activeFile.path}</h4>
+              <p className="text-xs text-slate-400 max-w-sm">
+                Binary asset ({activeFile.mimeType || 'application/octet-stream'}) ready to be published to your GitHub repository.
+              </p>
+              <p className="text-[11px] text-purple-400 font-mono">
+                {(activeFile.size / 1024).toFixed(1)} KB
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     );
   }

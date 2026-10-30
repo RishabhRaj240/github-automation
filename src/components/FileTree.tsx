@@ -9,10 +9,12 @@ import {
   AlertTriangle,
   Upload,
   FolderOpen,
+  FolderUp,
   Sparkles,
   Plus,
   Eraser,
   Globe,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useRepoPilot } from '../context/RepoPilotContext';
 import { STARTER_TEMPLATES } from '../lib/templates';
@@ -32,6 +34,7 @@ export const FileTree: React.FC = () => {
     secretFindings,
     loadStarterTemplate,
     handleFileUpload,
+    handleFolderInput,
   } = useRepoPilot();
 
   const [isAddingFile, setIsAddingFile] = useState(false);
@@ -42,6 +45,7 @@ export const FileTree: React.FC = () => {
   const [showPaletteModal, setShowPaletteModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const handleLanguageSelected = (lang: LanguageDefinition) => {
     let finalPath = lang.defaultFilename;
@@ -82,8 +86,20 @@ export const FileTree: React.FC = () => {
     setEditingFileId(null);
   };
 
-  const getFileIcon = (path: string) => {
+  const getFileIcon = (path: string, isBinary?: boolean) => {
     const p = path.toLowerCase();
+    if (
+      isBinary ||
+      p.endsWith('.png') ||
+      p.endsWith('.jpg') ||
+      p.endsWith('.jpeg') ||
+      p.endsWith('.gif') ||
+      p.endsWith('.svg') ||
+      p.endsWith('.webp') ||
+      p.endsWith('.ico')
+    ) {
+      return <ImageIcon className="w-4 h-4 text-purple-400 shrink-0" />;
+    }
     if (p.endsWith('.json')) return <FileJson className="w-4 h-4 text-amber-400 shrink-0" />;
     if (p.endsWith('.md') || p.endsWith('.txt')) return <FileText className="w-4 h-4 text-emerald-400 shrink-0" />;
     if (p.endsWith('.html') || p.endsWith('.htm')) return <FileCode className="w-4 h-4 text-orange-400 shrink-0" />;
@@ -116,6 +132,13 @@ export const FileTree: React.FC = () => {
             <FilePlus className="w-4 h-4" />
           </button>
           <button
+            onClick={() => folderInputRef.current?.click()}
+            title="Upload Complete Project Folder (with subfolders & assets)"
+            className="p-1 text-purple-400 hover:text-white hover:bg-purple-900/40 rounded transition"
+          >
+            <FolderUp className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => fileInputRef.current?.click()}
             title="Upload Files from Computer"
             className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition"
@@ -146,6 +169,20 @@ export const FileTree: React.FC = () => {
         className="hidden"
         onChange={(e) => {
           if (e.target.files) handleFileUpload(e.target.files);
+        }}
+      />
+      <input
+        type="file"
+        ref={folderInputRef}
+        // @ts-expect-error webkitdirectory is standard in all modern browsers
+        webkitdirectory=""
+        directory=""
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            handleFolderInput(e.target.files);
+          }
         }}
       />
 
@@ -320,9 +357,25 @@ export const FileTree: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 truncate mr-2">
-                      {getFileIcon(file.path)}
-                      <span className="truncate font-mono">{file.path}</span>
+                    <div className="flex items-center gap-2 truncate mr-2 flex-1">
+                      {getFileIcon(file.path, file.isBinary)}
+                      {file.path.includes('/') ? (
+                        <div className="truncate font-mono">
+                          <span className="text-slate-500 font-normal">
+                            {file.path.substring(0, file.path.lastIndexOf('/') + 1)}
+                          </span>
+                          <span className={isActive ? 'text-white font-medium' : 'text-slate-200'}>
+                            {file.path.substring(file.path.lastIndexOf('/') + 1)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="truncate font-mono">{file.path}</span>
+                      )}
+                      {file.isBinary && (
+                        <span className="text-[9px] px-1 py-0.2 bg-purple-500/20 text-purple-300 rounded font-mono uppercase tracking-wider shrink-0">
+                          asset
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1">

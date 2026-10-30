@@ -232,7 +232,7 @@ export class GitHubService {
           headers,
           body: JSON.stringify({
             content: file.content,
-            encoding: 'utf-8',
+            encoding: file.encoding === 'base64' ? 'base64' : 'utf-8',
           }),
         }
       );

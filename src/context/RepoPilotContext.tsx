@@ -5,6 +5,7 @@ import { detectLanguageByExtension } from '../lib/languageDetect';
 import { sanitizeFilePath, scanProjectForSecrets } from '../lib/secretScanner';
 import { generateReadmeWithAI } from '../services/aiService';
 import { GitHubService } from '../services/githubService';
+import { FolderUploadResult, parseDroppedItems, parseFolderInputFiles } from '../lib/folderUpload';
 import { useAuth } from './AuthContext';
 
 interface RepoPilotContextType {
@@ -18,9 +19,11 @@ interface RepoPilotContextType {
   publishProgress: { step: string; percent: number };
   lastPublishResult: PublishResult | null;
   publications: Publication[];
+  folderUploadStats: FolderUploadResult | null;
   setActiveFileId: (id: string) => void;
   setMetadata: React.Dispatch<React.SetStateAction<ProjectMetadata>>;
   setReadmeContent: (content: string) => void;
+  setFolderUploadStats: (stats: FolderUploadResult | null) => void;
   addFile: (path: string, content?: string) => { success: boolean; error?: string };
   addLanguageFile: (lang: string) => { success: boolean; error?: string };
   updateFileContent: (id: string, content: string) => void;
@@ -30,6 +33,8 @@ interface RepoPilotContextType {
   clearAllFiles: () => void;
   loadStarterTemplate: (templateId: string) => void;
   handleFileUpload: (uploadedFiles: FileList | File[]) => Promise<void>;
+  handleFolderDrop: (dataTransfer: DataTransfer) => Promise<{ success: boolean; result?: FolderUploadResult; error?: string }>;
+  handleFolderInput: (files: FileList | File[]) => Promise<{ success: boolean; result?: FolderUploadResult; error?: string }>;
   generateReadme: () => Promise<void>;
   publishProject: () => Promise<PublishResult>;
   resetWorkspace: () => void;
@@ -61,6 +66,7 @@ export const RepoPilotProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [publishProgress, setPublishProgress] = useState<{ step: string; percent: number }>({ step: '', percent: 0 });
   const [lastPublishResult, setLastPublishResult] = useState<PublishResult | null>(null);
+  const [folderUploadStats, setFolderUploadStats] = useState<FolderUploadResult | null>(null);
 
   // Stored publications
   const [publications, setPublications] = useState<Publication[]>(() => {
@@ -313,6 +319,121 @@ body {
     }).then((res) => setReadmeContent(res.content));
   };
 
+  const handleFolderDrop = async (
+    dataTransfer: DataTransfer
+  ): Promise<{ success: boolean; result?: FolderUploadResult; error?: string }> => {
+    try {
+      const result = await parseDroppedItems(dataTransfer);
+      if (result.files.length === 0) {
+        return { success: false, error: 'No valid files found in the dropped folder.' };
+      }
+
+      setFiles(result.files);
+      const updatedMetadata: ProjectMetadata = {
+        ...metadata,
+        name: result.projectName,
+        description: `Project containing ${result.totalFiles} files across ${result.detectedLanguages.join(', ')}`,
+      };
+      setMetadata(updatedMetadata);
+
+      // Choose main file for active tab
+      const nonBinary = result.files.filter((f) => !f.isBinary);
+      const mainFile =
+        nonBinary.find((f) =>
+          /^(index\.|app\.|main\.|package\.json|readme\.md)/i.test(f.path) ||
+          /\/(index\.|app\.|main\.)/i.test(f.path)
+        ) ||
+        nonBinary[0] ||
+        result.files[0];
+
+      if (mainFile) {
+        setActiveFileId(mainFile.id);
+      }
+
+      setFolderUploadStats(result);
+
+      // Automatically analyze project folder and synthesize README with AI
+      setIsGeneratingReadme(true);
+      generateReadmeWithAI({
+        metadata: updatedMetadata,
+        files: result.files,
+        githubUsername: githubConnection?.githubUsername || 'username',
+        customApiKey: customGeminiApiKey || undefined,
+      })
+        .then((res) => {
+          setReadmeContent(res.content);
+        })
+        .catch((err) => {
+          console.warn('Auto README generation error:', err);
+        })
+        .finally(() => {
+          setIsGeneratingReadme(false);
+        });
+
+      return { success: true, result };
+    } catch (err) {
+      console.error('Error processing dropped folder:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to process folder' };
+    }
+  };
+
+  const handleFolderInput = async (
+    uploadedFiles: FileList | File[]
+  ): Promise<{ success: boolean; result?: FolderUploadResult; error?: string }> => {
+    try {
+      const result = await parseFolderInputFiles(uploadedFiles);
+      if (result.files.length === 0) {
+        return { success: false, error: 'No valid files found in the selected folder.' };
+      }
+
+      setFiles(result.files);
+      const updatedMetadata: ProjectMetadata = {
+        ...metadata,
+        name: result.projectName,
+        description: `Project containing ${result.totalFiles} files across ${result.detectedLanguages.join(', ')}`,
+      };
+      setMetadata(updatedMetadata);
+
+      const nonBinary = result.files.filter((f) => !f.isBinary);
+      const mainFile =
+        nonBinary.find((f) =>
+          /^(index\.|app\.|main\.|package\.json|readme\.md)/i.test(f.path) ||
+          /\/(index\.|app\.|main\.)/i.test(f.path)
+        ) ||
+        nonBinary[0] ||
+        result.files[0];
+
+      if (mainFile) {
+        setActiveFileId(mainFile.id);
+      }
+
+      setFolderUploadStats(result);
+
+      // Automatically synthesize README
+      setIsGeneratingReadme(true);
+      generateReadmeWithAI({
+        metadata: updatedMetadata,
+        files: result.files,
+        githubUsername: githubConnection?.githubUsername || 'username',
+        customApiKey: customGeminiApiKey || undefined,
+      })
+        .then((res) => {
+          setReadmeContent(res.content);
+        })
+        .catch((err) => {
+          console.warn('Auto README generation error:', err);
+        })
+        .finally(() => {
+          setIsGeneratingReadme(false);
+        });
+
+      return { success: true, result };
+    } catch (err) {
+      console.error('Error processing selected folder:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to process folder' };
+    }
+  };
+
   const handleFileUpload = async (uploadedFiles: FileList | File[]) => {
     const fileArray = Array.from(uploadedFiles);
     const loadedFiles: ProjectFile[] = [];
@@ -450,9 +571,11 @@ body {
         publishProgress,
         lastPublishResult,
         publications,
+        folderUploadStats,
         setActiveFileId,
         setMetadata,
         setReadmeContent,
+        setFolderUploadStats,
         addFile,
         addLanguageFile,
         updateFileContent,
@@ -462,6 +585,8 @@ body {
         clearAllFiles,
         loadStarterTemplate,
         handleFileUpload,
+        handleFolderDrop,
+        handleFolderInput,
         generateReadme,
         publishProject,
         resetWorkspace,

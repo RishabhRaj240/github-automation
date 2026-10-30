@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   GitPullRequest,
   Sparkles,
@@ -11,6 +11,11 @@ import {
   ShieldAlert,
   HelpCircle,
   CheckCircle2,
+  FolderUp,
+  FolderCheck,
+  Loader2,
+  X,
+  FileBox,
 } from 'lucide-react';
 import { useRepoPilot } from '../context/RepoPilotContext';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +36,9 @@ export const CreateRepoPage: React.FC = () => {
     readmeContent,
     isGeneratingReadme,
     generateReadme,
+    folderUploadStats,
+    setFolderUploadStats,
+    handleFolderDrop,
   } = useRepoPilot();
 
   const [activeTab, setActiveTab] = useState<'code' | 'readme'>('code');
@@ -38,7 +46,51 @@ export const CreateRepoPage: React.FC = () => {
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
 
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isProcessingDrop, setIsProcessingDrop] = useState(false);
+  const dragCounterRef = useRef(0);
+
   const owner = githubConnection?.githubUsername || 'username';
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current <= 0) {
+      setIsDraggingOver(false);
+      dragCounterRef.current = 0;
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    dragCounterRef.current = 0;
+
+    if (e.dataTransfer) {
+      setIsProcessingDrop(true);
+      const res = await handleFolderDrop(e.dataTransfer);
+      setIsProcessingDrop(false);
+      if (!res.success && res.error) {
+        alert(res.error);
+      }
+    }
+  };
 
   const handleNameChange = (val: string) => {
     // Sanitize to valid characters
@@ -68,7 +120,39 @@ export const CreateRepoPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-transparent text-slate-100 overflow-hidden relative z-10">
+    <div
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className="flex flex-col h-[calc(100vh-4rem)] bg-transparent text-slate-100 overflow-hidden relative z-10"
+    >
+      {/* Drag & Drop Purple Overlay */}
+      {isDraggingOver && (
+        <div className="absolute inset-0 z-50 bg-[#0a0d14]/90 backdrop-blur-md flex flex-col items-center justify-center p-8 border-2 border-dashed border-brand-400/80 animate-in fade-in duration-150">
+          <div className="w-20 h-20 rounded-3xl bg-brand-500/20 text-brand-400 border border-brand-500/40 flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(168,85,247,0.5)] animate-bounce">
+            <FolderUp className="w-10 h-10 text-brand-300" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Drop Project Folder Here</h2>
+          <p className="text-sm text-slate-300 max-w-md text-center mb-4">
+            Uploads all nested subfolders, code files, and binary assets. Automatically configures repository metadata and synthesizes README.
+          </p>
+          <div className="flex items-center gap-2.5 text-xs text-brand-300 bg-brand-950/80 border border-brand-800/80 px-4 py-2 rounded-xl shadow-lg shadow-brand-500/10">
+            <Sparkles className="w-4 h-4 text-brand-400 shrink-0" />
+            <span>Recursive subfolder extraction &bull; Binary asset support &bull; AI README generation</span>
+          </div>
+        </div>
+      )}
+
+      {/* Processing Drop Spinner */}
+      {isProcessingDrop && (
+        <div className="absolute inset-0 z-50 bg-[#0a0d14]/85 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-in fade-in duration-100">
+          <Loader2 className="w-12 h-12 text-brand-400 animate-spin mb-4" />
+          <h3 className="text-base font-semibold text-white mb-1">Reading Project Folder &amp; Subdirectories...</h3>
+          <p className="text-xs text-slate-400">Extracting files, assets, and analyzing stack for README synthesis.</p>
+        </div>
+      )}
+
       {/* Top Project Configuration Bar */}
       <div className="bg-[#0e1320] border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
         {/* Left: Project Name & Target Owner */}
@@ -172,6 +256,74 @@ export const CreateRepoPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Uploaded Project Folder Status Banner */}
+      {folderUploadStats && (
+        <div className="bg-gradient-to-r from-purple-950/70 via-slate-900/90 to-brand-950/60 border-b border-purple-500/30 px-4 py-2 flex items-center justify-between gap-3 text-xs animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0 border border-purple-500/40">
+              <FolderCheck className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-white">
+                Folder "{folderUploadStats.projectName}"
+              </span>
+              <span className="text-slate-400">&bull;</span>
+              <span className="text-purple-300 font-mono">
+                {folderUploadStats.totalFiles} files
+              </span>
+              {folderUploadStats.subfolders.length > 0 && (
+                <>
+                  <span className="text-slate-400">&bull;</span>
+                  <span className="text-slate-300 font-mono">
+                    {folderUploadStats.subfolders.length} subfolder{folderUploadStats.subfolders.length > 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
+              {folderUploadStats.totalAssets > 0 && (
+                <>
+                  <span className="text-slate-400">&bull;</span>
+                  <span className="text-cyan-300 font-mono">
+                    {folderUploadStats.totalAssets} asset{folderUploadStats.totalAssets > 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
+              <span className="text-slate-400">&bull;</span>
+              <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                {isGeneratingReadme ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Analyzing folder &amp; generating README...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3" />
+                    <span>AI README Synthesized</span>
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {activeTab !== 'readme' && !isGeneratingReadme && (
+              <button
+                onClick={() => setActiveTab('readme')}
+                className="px-2.5 py-0.5 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-[11px] font-medium transition"
+              >
+                Review README
+              </button>
+            )}
+            <button
+              onClick={() => setFolderUploadStats(null)}
+              className="text-slate-400 hover:text-white p-0.5 rounded transition"
+              title="Dismiss notification"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Split Workspace Workspace */}
       <div className="flex-1 flex overflow-hidden">
