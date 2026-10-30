@@ -3,6 +3,7 @@ import { ProjectFile, ProjectMetadata, Publication, PublishResult, SecretFinding
 import { STARTER_TEMPLATES } from '../lib/templates';
 import { detectLanguageByExtension } from '../lib/languageDetect';
 import { sanitizeFilePath, scanProjectForSecrets } from '../lib/secretScanner';
+import { getReadmeRepositoryName } from '../lib/readmeRepositoryName';
 import { generateReadmeWithAI } from '../services/aiService';
 import { GitHubService } from '../services/githubService';
 import { FolderUploadResult, parseDroppedItems, parseFolderInputFiles } from '../lib/folderUpload';
@@ -47,8 +48,18 @@ export const RepoPilotProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Initialize with React + Vite starter template
   const defaultTemplate = STARTER_TEMPLATES[0];
+  const savedWorkspace = (() => {
+    try {
+      const raw = localStorage.getItem('repopilot_workspace');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed?.version === 1 && Array.isArray(parsed.files) && parsed.metadata) return parsed;
+    } catch { /* use a fresh workspace when saved data is unavailable */ }
+    return null;
+  })();
 
   const [files, setFiles] = useState<ProjectFile[]>(() => {
+    if (savedWorkspace) return savedWorkspace.files;
     return defaultTemplate.files.map((f, i) => ({
       id: `file-${i}-${Date.now()}`,
       path: f.path,
@@ -58,15 +69,15 @@ export const RepoPilotProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   });
 
-  const [activeFileId, setActiveFileId] = useState<string>('');
-  const [metadata, setMetadata] = useState<ProjectMetadata>(defaultTemplate.metadata);
-  const [readmeContent, setReadmeContent] = useState<string>('');
+  const [activeFileId, setActiveFileId] = useState<string>(savedWorkspace?.activeFileId || '');
+  const [metadata, setMetadata] = useState<ProjectMetadata>(savedWorkspace?.metadata || defaultTemplate.metadata);
+  const [readmeContent, setReadmeContent] = useState<string>(savedWorkspace?.readmeContent || '');
   const [secretFindings, setSecretFindings] = useState<SecretFinding[]>([]);
   const [isGeneratingReadme, setIsGeneratingReadme] = useState<boolean>(false);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [publishProgress, setPublishProgress] = useState<{ step: string; percent: number }>({ step: '', percent: 0 });
   const [lastPublishResult, setLastPublishResult] = useState<PublishResult | null>(null);
-  const [folderUploadStats, setFolderUploadStats] = useState<FolderUploadResult | null>(null);
+  const [folderUploadStats, setFolderUploadStats] = useState<FolderUploadResult | null>(savedWorkspace?.folderUploadStats || null);
 
   // Stored publications
   const [publications, setPublications] = useState<Publication[]>(() => {
@@ -105,6 +116,17 @@ export const RepoPilotProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     localStorage.setItem('repopilot_publications', JSON.stringify(publications));
   }, [publications]);
+
+  // Keep edits and uploads across route changes and browser refreshes.
+  useEffect(() => {
+    try {
+      localStorage.setItem('repopilot_workspace', JSON.stringify({
+        version: 1, files, activeFileId, metadata, readmeContent, folderUploadStats,
+      }));
+    } catch (error) {
+      console.warn('Could not save workspace locally:', error);
+    }
+  }, [files, activeFileId, metadata, readmeContent, folderUploadStats]);
 
   // Live secret scanner
   useEffect(() => {
@@ -516,10 +538,15 @@ body {
     }
 
     try {
+      const readmeRepoName = getReadmeRepositoryName(readmeContent);
+      const publishMetadata = readmeRepoName
+        ? { ...metadata, name: readmeRepoName }
+        : metadata;
+
       const result = await GitHubService.publishRepository(
         token,
         owner,
-        metadata,
+        publishMetadata,
         files,
         readmeContent,
         (step, percent) => {
@@ -556,6 +583,8 @@ body {
 
   const resetWorkspace = () => {
     loadStarterTemplate('react-vite');
+    setReadmeContent('');
+    setFolderUploadStats(null);
   };
 
   return (

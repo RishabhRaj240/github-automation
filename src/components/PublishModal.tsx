@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useRepoPilot } from '../context/RepoPilotContext';
 import { useAuth } from '../context/AuthContext';
+import { getReadmeRepositoryName } from '../lib/readmeRepositoryName';
 
 interface PublishModalProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose }) =
   const currentToken = githubAccessToken || localStorage.getItem('repopilot_gh_token');
   const hasToken = Boolean(currentToken);
   const owner = githubConnection?.githubUsername || 'RishabhRaj240';
+  const targetRepoName = getReadmeRepositoryName(readmeContent) || metadata.name;
   const totalFiles = files.length + 1; // including README.md
   const totalSizeKb = (files.reduce((acc, f) => acc + f.size, 0) + new Blob([readmeContent]).size) / 1024;
 
@@ -128,7 +130,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose }) =
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">Review &amp; Publish to GitHub</h3>
-              <p className="text-[11px] text-slate-400">Target: @{owner}/{metadata.name}</p>
+              <p className="text-[11px] text-slate-400">Target: @{owner}/{targetRepoName}</p>
             </div>
           </div>
           {!isPublishing && (
@@ -145,7 +147,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose }) =
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-400">Target Repository:</span>
               <span className="font-mono font-semibold text-white">
-                github.com/{owner}/{metadata.name}
+                github.com/{owner}/{targetRepoName}
               </span>
             </div>
 

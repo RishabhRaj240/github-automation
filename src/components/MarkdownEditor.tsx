@@ -43,8 +43,10 @@ export const MarkdownEditor: React.FC = () => {
       .replace(/>/g, '&gt;');
 
     // Code blocks
-    html = html.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_m, lang, code) => {
-      return `<pre class="my-3 p-3 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300 font-mono text-xs overflow-x-auto"><code>${code}</code></pre>`;
+    html = html.replace(/```([^\n`]*)\n([\s\S]*?)```/g, (_m, info, code) => {
+      const language = String(info).trim().split(/\s+/)[0];
+      const label = language ? `<span class="mb-2 block text-[10px] uppercase tracking-wider text-slate-500">${language}</span>` : '';
+      return `<pre class="my-3 p-3 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300 font-mono text-xs overflow-x-auto">${label}<code>${code}</code></pre>`;
     });
 
     // Inline code
